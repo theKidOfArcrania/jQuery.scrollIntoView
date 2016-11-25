@@ -10,7 +10,7 @@
  * http://www.opensource.org/licenses/mit-license.php
  * 
  * @date 8 Jan 2013
- * @author Arwid Bancewicz http://arwid.ca, theKidOfArcrania
+ * @author Arwid Bancewicz http://arwid.ca
  * @version 0.3
  */
  
