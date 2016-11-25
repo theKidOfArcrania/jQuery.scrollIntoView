@@ -15,7 +15,44 @@
  */
  
 (function($) {
+
+    function getViewportHeight(elem)
+    {
+        var pH = elem.clientHeight;
+        var wH = $(window).height();
+        
+        if ((pH > wH && elem.tagName == "BODY") ||
+            (pH == 0 && elem.tagName == "BODY"))
+            return wH;
+        // case: if body's elements are all absolutely/fixed positioned, use window height
+        else 
+            return pH;
+    }
+
+    function getScrollParent(elem)
+    {
+        //Find parent of interest, keep track of scroll offsets.
+        var scrollOffset = 0;
+        var pEl = elem;
+        
+        // go up parents until we find one that scrolls
+        
+        while (pEl) {
+            // Can we scroll this? (simpler check)
+            if (pEl.scrollHeight > getViewportHeight(pEl))
+                return pEl;
+
+            // try next parent
+            pEl = pEl.parentElement;
+        }
+        
+        return undefined;
+    }
+    
     $.fn.scrollIntoView = function(duration, easing, complete) {
+        if (this.length == 0)
+            return;
+      
         // The arguments are optional.
         // The first argment can be false for no animation or a duration.
         // The first argment could also be a map of options.
@@ -32,38 +69,36 @@
             opts.smooth = false;
         }
 
-        // get enclosing offsets
-        var elY = Infinity, elH = 0;
-        if (this.length==1)((elY=this.get(0).offsetTop)==null||(elH=elY+this.get(0).offsetHeight));
-        else this.each(function(i,el){(el.offsetTop<elY?elY=el.offsetTop:el.offsetTop+el.offsetHeight>elH?elH=el.offsetTop+el.offsetHeight:null)});
-        elH -= elY;
-
         // start from the common ancester
+        // and find nearest scrollable parent.
         var pEl = this.commonAncestor().get(0);
-
-        var wH = $(window).height();
+        pEl = getScrollParent(pEl);
         
-        // go up parents until we find one that scrolls
-        while (pEl) {
-            var pY = pEl.scrollTop, pH = pEl.clientHeight;
-            if (pH > wH) pH = wH;
-            
-            // case: if body's elements are all absolutely/fixed positioned, use window height
-            if (pH == 0 && pEl.tagName == "BODY") pH = wH;
-            
-            // Can we scroll this? (simpler check)
-            if (pEl.scrollHeight > pH) {
-                if (elY <= pY) scrollTo(pEl, elY); // scroll up
-                else if ((elY + elH) > (pY + pH)) scrollTo(pEl, elY + elH - pH); // scroll down
-                else scrollTo(pEl, undefined) // no scroll
-                return;
-            }
-
-            // try next parent
-            elY += pEl.offsetTop; //add offset within parent object.
-            pEl = pEl.offsetParent;
+        
+        // get enclosing offsets relative to scrollable parent.
+        var pY = pEl.getBoundingClientRect().top;
+        var pH = getViewportHeight(pEl);
+        var elTop = Infinity, elBot = -Infinity;
+        if (this.length==1)
+        {
+            var rect = this[0].getBoundingClientRect();
+            elTop = rect.top - pY;
+            elBot = rect.bottom - pY;
         }
-
+        else this.each(function(i,el){
+            var rect = el.getBoundingClientRect();
+            elTop = Math.min(elTop, rect.top - pY);
+            elBot = Math.max(elBot, rect.bottom - pY);
+        });
+        
+        //Scrolling
+        if (elTop < 0) 
+            scrollTo(pEl, pEl.scrollTop + elTop); // scroll down
+        else if (elBot > pH) 
+            scrollTo(pEl, pEl.scrollTop + (elBot - pH)); // scroll up
+        else 
+            scrollTo(pEl, undefined) // no scroll
+        
         function scrollTo(el, scrollTo) {
             if (scrollTo === undefined) {
                 if ($.isFunction(opts.complete)) opts.complete.call(el);
@@ -95,7 +130,12 @@
         // completely? whether element is out of view completely
         var outOfView = true;
         this.each(function() {
-            var pEl = this.parentNode, pY = pEl.scrollTop, pH = pEl.clientHeight, elY = this.offsetTop, elH = this.offsetHeight;
+            
+            var pEl = getScrollParent(this.parentNode),
+                pY = pEl.scrollTop, 
+                pH = getViewportHeight(pEl), 
+                elY = this.offsetTop, 
+                elH = this.offsetHeight;
             if (completely ? (elY) > (pY + pH) : (elY + elH) > (pY + pH)) {}
             else if (completely ? (elY + elH) < pY: elY < pY) {}
             else outOfView = false;
