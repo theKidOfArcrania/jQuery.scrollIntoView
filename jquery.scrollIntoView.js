@@ -3,6 +3,8 @@
  * The default browser behavior always places the element at the top or bottom of its container. 
  * This override is smart enough to not scroll if the element is already visible.
  *
+ * Fix for if the immediate offset-parent is not scrollable
+ * 
  * Copyright 2011 Arwid Bancewicz
  * Licensed under the MIT license
  * http://www.opensource.org/licenses/mit-license.php
@@ -11,7 +13,8 @@
  * @author Arwid Bancewicz http://arwid.ca
  * @version 0.3
  */
- (function($) {
+ 
+(function($) {
     $.fn.scrollIntoView = function(duration, easing, complete) {
         // The arguments are optional.
         // The first argment can be false for no animation or a duration.
@@ -31,7 +34,7 @@
 
         // get enclosing offsets
         var elY = Infinity, elH = 0;
-        if (this.size()==1)((elY=this.get(0).offsetTop)==null||(elH=elY+this.get(0).offsetHeight));
+        if (this.length==1)((elY=this.get(0).offsetTop)==null||(elH=elY+this.get(0).offsetHeight));
         else this.each(function(i,el){(el.offsetTop<elY?elY=el.offsetTop:el.offsetTop+el.offsetHeight>elH?elH=el.offsetTop+el.offsetHeight:null)});
         elH -= elY;
 
@@ -48,10 +51,8 @@
             // case: if body's elements are all absolutely/fixed positioned, use window height
             if (pH == 0 && pEl.tagName == "BODY") pH = wH;
             
-            if (
-            // it wiggles?
-            (pEl.scrollTop != ((pEl.scrollTop += 1) == null || pEl.scrollTop) && (pEl.scrollTop -= 1) != null) ||
-            (pEl.scrollTop != ((pEl.scrollTop -= 1) == null || pEl.scrollTop) && (pEl.scrollTop += 1) != null)) {
+            // Can we scroll this? (simpler check)
+            if (pEl.scrollHeight > pH) {
                 if (elY <= pY) scrollTo(pEl, elY); // scroll up
                 else if ((elY + elH) > (pY + pH)) scrollTo(pEl, elY + elH - pH); // scroll down
                 else scrollTo(pEl, undefined) // no scroll
@@ -59,7 +60,8 @@
             }
 
             // try next parent
-            pEl = pEl.parentNode;
+            elY += pEl.offsetTop; //add offset within parent object.
+            pEl = pEl.offsetParent;
         }
 
         function scrollTo(el, scrollTo) {
@@ -74,13 +76,13 @@
         }
         return this;
     };
-
+    
     $.fn.scrollIntoView.defaults = {
         smooth: true,
         duration: null,
         easing: $.easing && $.easing.easeOutExpo ? 'easeOutExpo': null,
         // Note: easeOutExpo requires jquery.effects.core.js
-        //       otherwise jQuery will default to use 'swing'
+        //         otherwise jQuery will default to use 'swing'
         complete: $.noop(),
         step: null,
         specialEasing: {} // cannot be null in jQuery 1.8.3
@@ -133,5 +135,4 @@
         }
         return $([]);
     }
-
 })(jQuery);
